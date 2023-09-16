@@ -7,17 +7,9 @@ const pool = new Pool({
   database: 'lightbnb'
 });
 
-// pool.query(`
-// SELECT title 
-// FROM properties
-// LIMIT 10;
-// `)
-// .then(response => {
-//   // console.log(response)
-// }).catch(err => console.error('query error', err.stack));
-
 const properties = require("./json/properties.json");
 const users = require("./json/users.json");
+const { compareSync } = require('bcrypt');
 
 /// Users
 
@@ -27,14 +19,20 @@ const users = require("./json/users.json");
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function (email) {
-  let resolvedUser = null;
-  for (const userId in users) {
-    const user = users[userId];
-    if (user && user.email.toLowerCase() === email.toLowerCase()) {
-      resolvedUser = user;
-    }
-  }
-  return Promise.resolve(resolvedUser);
+  return pool
+    .query(`SELECT * FROM users
+    WHERE email = $1`, [email])
+    .then((result) => {
+      if (result.rows.length > 0) {
+        console.log(result.rows);
+        return result.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 
 /**
@@ -43,7 +41,19 @@ const getUserWithEmail = function (email) {
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function (id) {
-  return Promise.resolve(users[id]);
+  return pool
+    .query(`SELECT * FROM users WHERE id = $1`, [id])
+    .then((result) => {
+      if (result.rows.length > 0) {
+        console.log(result.rows);
+        return result.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 
 /**
@@ -52,10 +62,19 @@ const getUserWithId = function (id) {
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function (user) {
-  const userId = Object.keys(users).length + 1;
-  user.id = userId;
-  users[userId] = user;
-  return Promise.resolve(user);
+  return pool
+    .query(`
+      INSERT INTO users (name, email, password)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [user.name, user.email, user.password])
+    .then((result) => {
+      console.log(result.rows);
+      return result.rows[0];
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 
 /// Reservations
